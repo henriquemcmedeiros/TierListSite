@@ -21,22 +21,39 @@ function SepararElementos(arquivo, tipo) {
                 elemento.Nota = item[1].substring(0, 3);
             }
             else if(tipo === Tipo.Filmes) {
-                let nomeAnoFilme = item[0].replace(/\(|\)/);
+                let nomeAnoFilme = item[0].replace(/\(|\)/gi, "");
 
+                let ano = nomeAnoFilme.substring(nomeAnoFilme.length - 4);
 
-                elemento.Nome = item[0]
-                elemento.Nota = item[1].substring(0, 3);
+                if (!ano.match(/[0-9]+/g)) {
+                    ano = null;
+                }
+
+                let nome = nomeAnoFilme.replace(ano, "").trim();
+
+                elemento.Nome = nome;
+                elemento.Ano = ano;
             }
-    
-            
+
+            let nota = "";
+
+            for (let i = 0; i < 6; i++) {
+                if(item[1][i] == "/") {
+                    break;
+                }
+                nota += item[1][i];
+            }
+
+            elemento.Nota = nota;
 
             elementos.push(elemento);
+            console.log(elemento);
         }
         console.log(elementos);
     });
 }
 
-SepararElementos("animes", Tipo.SemData);
+//SepararElementos("animes", Tipo.SemData);
 SepararElementos("animacoes", Tipo.Filmes);
 
 // Notas sem data
