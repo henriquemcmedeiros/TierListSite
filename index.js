@@ -49,6 +49,14 @@ async function consultarPagina(IdPagina) {
     console.log(response);
 }
 
+async function consultarFilhosPagina(IdPagina) {
+    const response = await notion.blocks.children.list({
+        block_id: IdPagina,
+        page_size: 200,
+    });
+    console.log(response);
+}
+
 async function SepararElementosTxt(arquivo, tipo) {
     let elementos = [];
 
@@ -154,4 +162,4 @@ async function SepararElementosTxt(arquivo, tipo) {
     return elementos;
 }
 
-consultarPagina(ID_HENRICOLA);
+consultarFilhosPagina(ID_TIERLIST);
