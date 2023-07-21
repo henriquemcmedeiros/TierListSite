@@ -4,9 +4,9 @@ const Tipo = {
 	Albuns: "Data no formato de albuns",
 }
 
-let elementos = [];
-
 function SepararElementos(arquivo, tipo) {
+    let elementos = [];
+
     fetch(`${arquivo}.txt`)
     .then(response => response.text())
     .then(text => {
@@ -72,26 +72,10 @@ function SepararElementos(arquivo, tipo) {
             elementos.push(elemento);
             console.log(elemento);
         }
-        console.log(elementos);
+        return elementos;
     });
 }
 
-//SepararElementos("animes", Tipo.SemData);
-//SepararElementos("animacoes", Tipo.Filmes);
-SepararElementos("albuns", Tipo.Albuns);
-
-// Notas sem data
-
-// Enquanto a string não acabou
-// Separa em cada item (\n)
-// Separa em cada (" - ")
-/*let itemLista = "".split(" - ");
-
-let NomeItem = itemLista[0];
-let Nota = parseInt(itemLista[1].substring(0, 2));
-
-// Notas com data
-itemLista = "".split(" - ");
-
-NomeItem = itemLista[0];
-Nota = parseInt(itemLista[1].substring(0, 2));*/
+let objAnimes = SepararElementos("animes", Tipo.SemData);
+let objAnimacoes = SepararElementos("animacoes", Tipo.Filmes);
+let objAlbuns = SepararElementos("albuns", Tipo.Albuns);
