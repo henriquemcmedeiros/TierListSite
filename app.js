@@ -1,5 +1,5 @@
 const Tipo = {
-	SemData: "sem data",
+	SemData: "Sem data",
 	Filmes: "Data no formato de filmes",
 	Albuns: "Data no formato de albuns",
 }
@@ -35,8 +35,9 @@ function SepararElementos(arquivo, tipo) {
                     elemento.Ano = ano;
                 }
 
+                // Lógica de alocação de nota padrão
                 let nota = "";
-    
+                
                 for (let i = 0; i < 6; i++) {
                     if(item[1][i] == "/") {
                         break;
@@ -49,14 +50,19 @@ function SepararElementos(arquivo, tipo) {
             else if (tipo == Tipo.Albuns) {
                 // X&Y - Coldplay - 06/2005 - 13/13 - 100%
                 elemento.Nome = item[0];
-                elemento.NomeArtista = item[1];
+
+                elemento.NomeArtista = [];
+                let artistas = item[1].split(", ");
+                for (let artista of artistas) {
+                    elemento.NomeArtista.push(artista);
+                }
 
                 let mes = "";
                 let ano = "";
 
+                // Lógica data por mês/ano
+                let ehMes = true;
                 for (let i = 0; i < 7; i++) {
-                    let ehMes = true
-
                     if(item[2][i] != "/" && ehMes) {
                         mes +=  item[2][i]
                     }
@@ -67,15 +73,41 @@ function SepararElementos(arquivo, tipo) {
                         ano += item[2][i];
                     }
                 }
+
+                elemento.Mes = mes;
+                elemento.Ano = ano;
+
+                let numMusicasBoas = "";
+                let numMusicas = "";
+
+                // Lógica para número de músicas e quantidade de músicas boas
+                let ehMusicaBoa = true;
+                for (let i = 0; i < 5; i++) {
+                    if(item[3][i] != "/" && ehMusicaBoa) {
+                        numMusicasBoas +=  item[3][i]
+                    }
+                    else if (item[3][i] == "/") {
+                        ehMusicaBoa = false;
+                    }
+                    else if(!ehMes) {
+                        numMusicas += item[3][i];
+                    }
+
+                    elemento.MusicaBoa = parseInt(numMusicasBoas);
+                    elemento.Musicas = parseInt(numMusicas);
+
+                    elemento.Porcentagem = ((elemento.MusicaBoa / elemento.Musicas) * 100).toFixed(2);
+                }
             }
 
             elementos.push(elemento);
-            console.log(elemento);
         }
-        return elementos;
     });
+    return elementos;
 }
 
-let objAnimes = SepararElementos("animes", Tipo.SemData);
-let objAnimacoes = SepararElementos("animacoes", Tipo.Filmes);
+// let objAnimes = SepararElementos("animes", Tipo.SemData);
+// let objAnimacoes = SepararElementos("animacoes", Tipo.Filmes);
+//SepararElementos("albuns", Tipo.Albuns);
 let objAlbuns = SepararElementos("albuns", Tipo.Albuns);
+console.log(objAlbuns);
