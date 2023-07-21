@@ -16,35 +16,58 @@ function SepararElementos(arquivo, tipo) {
             let elemento = {}
             let item = coluna.split(" - ");
 
-            if (tipo === Tipo.SemData) {
+            if (tipo === Tipo.SemData || tipo === Tipo.Filmes) {
+                if (tipo === Tipo.SemData) {
+                    elemento.Nome = item[0];
+                }
+                else if(tipo === Tipo.Filmes) {
+                    let nomeAnoFilme = item[0].replace(/\(|\)/gi, "");
+    
+                    let ano = nomeAnoFilme.substring(nomeAnoFilme.length - 4);
+    
+                    if (!ano.match(/[0-9]+/g)) {
+                        ano = null;
+                    }
+    
+                    let nome = nomeAnoFilme.replace(ano, "").trim();
+    
+                    elemento.Nome = nome;
+                    elemento.Ano = ano;
+                }
+
+                let nota = "";
+    
+                for (let i = 0; i < 6; i++) {
+                    if(item[1][i] == "/") {
+                        break;
+                    }
+                    nota += item[1][i];
+                }
+    
+                elemento.Nota = nota;
+            }
+            else if (tipo == Tipo.Albuns) {
+                // X&Y - Coldplay - 06/2005 - 13/13 - 100%
                 elemento.Nome = item[0];
-                elemento.Nota = item[1].substring(0, 3);
-            }
-            else if(tipo === Tipo.Filmes) {
-                let nomeAnoFilme = item[0].replace(/\(|\)/gi, "");
+                elemento.NomeArtista = item[1];
 
-                let ano = nomeAnoFilme.substring(nomeAnoFilme.length - 4);
+                let mes = "";
+                let ano = "";
 
-                if (!ano.match(/[0-9]+/g)) {
-                    ano = null;
+                for (let i = 0; i < 7; i++) {
+                    let ehMes = true
+
+                    if(item[2][i] != "/" && ehMes) {
+                        mes +=  item[2][i]
+                    }
+                    else if (item[2][i] == "/") {
+                        ehMes = false;
+                    }
+                    else if(!ehMes) {
+                        ano += item[2][i];
+                    }
                 }
-
-                let nome = nomeAnoFilme.replace(ano, "").trim();
-
-                elemento.Nome = nome;
-                elemento.Ano = ano;
             }
-
-            let nota = "";
-
-            for (let i = 0; i < 6; i++) {
-                if(item[1][i] == "/") {
-                    break;
-                }
-                nota += item[1][i];
-            }
-
-            elemento.Nota = nota;
 
             elementos.push(elemento);
             console.log(elemento);
@@ -54,7 +77,8 @@ function SepararElementos(arquivo, tipo) {
 }
 
 //SepararElementos("animes", Tipo.SemData);
-SepararElementos("animacoes", Tipo.Filmes);
+//SepararElementos("animacoes", Tipo.Filmes);
+SepararElementos("albuns", Tipo.Albuns);
 
 // Notas sem data
 
