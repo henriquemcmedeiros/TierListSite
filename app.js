@@ -4,10 +4,10 @@ const Tipo = {
 	Albuns: "Data no formato de albuns",
 }
 
-function SepararElementos(arquivo, tipo) {
+async function SepararElementosTxt(arquivo, tipo) {
     let elementos = [];
 
-    fetch(`${arquivo}.txt`)
+    await fetch(`${arquivo}.txt`)
     .then(response => response.text())
     .then(text => {
         const linha = text.split("\n");
@@ -102,12 +102,52 @@ function SepararElementos(arquivo, tipo) {
 
             elementos.push(elemento);
         }
+    })
+    .catch (() =>{
+        console("A leitura do arquivo NÃO foi feita");
     });
     return elementos;
 }
 
-// let objAnimes = SepararElementos("animes", Tipo.SemData);
-// let objAnimacoes = SepararElementos("animacoes", Tipo.Filmes);
-//SepararElementos("albuns", Tipo.Albuns);
-let objAlbuns = SepararElementos("albuns", Tipo.Albuns);
-console.log(objAlbuns);
+async function criarString(objArquivo, tipo) {
+    let novoTxt = "";
+
+    if (tipo === Tipo.SemData) {
+        for(let i = 0; i < Object.keys(objArquivo).length; i++) {
+            novoTxt += `${objArquivo[i].Nome} - ${objArquivo[i].Nota}/10\n`;
+        }
+    } else if (tipo === Tipo.Filmes) {
+        for(let i = 0; i < Object.keys(objArquivo).length; i++) {
+            if (objArquivo[i].Ano != null) {
+                novoTxt += `${objArquivo[i].Nome} (${objArquivo[i].Ano}) - ${objArquivo[i].Nota}/10\n`;
+            }
+            else {
+                novoTxt += `${objArquivo[i].Nome} - ${objArquivo[i].Nota}/10\n`;
+            }
+        }
+    } else if (tipo === Tipo.Albuns) {
+        for(let i = 0; i < Object.keys(objArquivo).length; i++) {
+            let nomeArtista = "";
+            for (let j = 0; j < objArquivo[i].NomeArtista.length; j++) {
+                nomeArtista += objArquivo[i].NomeArtista[j];
+                if (!(j === objArquivo[i].NomeArtista.length - 1)) {
+                    nomeArtista += ", "
+                }
+            }
+            novoTxt += `${objArquivo[i].Nome} - ${nomeArtista} - ${objArquivo[i].Mes}/${objArquivo[i].Ano} - ${objArquivo[i].MusicaBoa}/${objArquivo[i].Musicas} - ${objArquivo[i].Porcentagem}%\n`;
+        }
+    }
+    return novoTxt;
+}
+
+/*let objAnimes = SepararElementosTxt("animes", Tipo.SemData)
+                .then(objAnimes => criarString(objAnimes, Tipo.SemData))
+                .then(txtAlbuns => console.log(txtAlbuns));*/
+
+let objAnimacoes = SepararElementosTxt("animacoes", Tipo.Filmes)
+                .then(objAnimacoes => criarString(objAnimacoes, Tipo.Filmes))
+                .then(txtAlbuns => console.log(txtAlbuns));
+
+/*let objAlbuns = SepararElementosTxt("albuns", Tipo.Albuns)
+                .then(objAlbuns => criarString(objAlbuns, Tipo.Albuns))
+                .then(txtAlbuns => console.log(txtAlbuns));*/
