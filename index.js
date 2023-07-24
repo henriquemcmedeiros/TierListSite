@@ -1,22 +1,36 @@
 const ID_TIERLIST = "dc7d0566-1058-4444-b5c4-4386b6cb77bc";
 const ID_HENRICOLA = "cb95e42a60fb4ac6a1b42daa9fd4c832";
-const ID_FILMES_LONGAS = "6d34050d-5fef-4c86-b93d-ed3832ace6e4";
-const ID_FILMES_ANIMACOES = 1;
 const ID_COLUNA_ESQUERDA = "937e2804-92ff-4994-b820-9e7130487fb6";
-//const NOTION_API_KEY="secret_061CgmDsZTbyM3aCSxaBqSWCfancI9rp7gpxldNd7mU"
+const ID_COLUNA_DIREITA = "f7ad9de2-c931-4c57-8205-042bc557cc39";
 
 const Tipo = {
 	SemData: "Sem data",
-	Filmes: "Data no formato de filmes",
-	Albuns: "Data no formato de albuns",
+	Filmes: "Formato de filmes",
+	Albuns: "Formato de albuns",
+    TedTalks: "Formato TedTalks",
+    Shows: "Formato Shows",
+}
+
+let dictTipos = {
+    "Animes": Tipo.SemData,
+    "Séries": Tipo.SemData,
+    "Animações": Tipo.Filmes,
+    "Jogos - Videogame": Tipo.SemData,
+    "Jogos - Tabuleiro": Tipo.SemData,
+    "Mangas e HQ\’s": Tipo.SemData,
+    "Livros": Tipo.SemData,
+    "Ted Talks": Tipo.TedTalks,
+    "Filmes - Longas": Tipo.Filmes,
+    "Filmes - Curtas": Tipo.Filmes,
+    "Comédia": Tipo.SemData,
+    "Documentários": Tipo.SemData,
+    "Álbuns": Tipo.Albuns,
+    "Reality Shows": Tipo.SemData,
+    "RPG\’s": Tipo.SemData,
+    "Shows": Tipo.Shows,
 }
 
 let elementosGerais = [];
-
-let ObjElemento = {
-    NomeDaColuna: null,
-    elementos: []
-}
 
 const dotenv = require('dotenv').config();
 const { Client } = require('@notionhq/client');
@@ -54,7 +68,7 @@ async function creteDatabase(parentId, DatabaseName) {
   return response;
 };
 
-async function SepararElementos(string, tipo) {
+async function SepararElementos(string, tipo, ObjElemento) {
     let elemento = {}
     let item = string.split(" - ");
     if (tipo === Tipo.SemData || tipo === Tipo.Filmes) {
@@ -128,6 +142,26 @@ async function SepararElementos(string, tipo) {
             elemento.Porcentagem = ((elemento.MusicaBoa / elemento.Musicas) * 100).toFixed(2);
         }
     }
+    else if(tipo === Tipo.TedTalks) {
+        elemento.Nome = item[0];
+        elemento.Palestrante = item[1];
+        
+        let nota = "";
+        
+        for (let i = 0; i < 4; i++) {
+            if (item[1]) {
+                if(item[2][i] == "/") {
+                    break;
+                }
+                nota += item[2][i];
+            }
+        }
+        elemento.Nota = nota;
+    }
+    else if (tipo === Tipo.Shows) {
+        elemento.Nome = item[0];
+        elemento.Data = item[1];
+    }
     ObjElemento.elementos.push(elemento);
 }
 
@@ -137,31 +171,62 @@ async function consultarPagina(IdPagina) {
     });
 }
 
-async function consultarFilhosPagina(IdPagina) {
+async function consultarFilhosPagina(IdPagina, IdProxPágina) {
     return await notion.blocks.children.list({
         block_id: IdPagina,
-        page_size: 10,
+        page_size: 100,
+        start_cursor: IdProxPágina,
     });
 }
 
-async function printar(idBloco) {
-    //let aux = await consultarFilhosPagina(idBloco);
-    let aux = await consultarPagina(idBloco);
+async function SepararElementosAPI(idColuna, index, objCFP) {
+    let i = 0;
+    let aux;
 
-    /*for (let i = 0; i < aux.results.length; i++) {
-        if(aux.results[i].hasOwnProperty('numbered_list_item')) {
-            SepararElementos(aux.results[i].numbered_list_item.rich_text[0].plain_text, Tipo.Filmes);
+    let ObjElemento = {
+        NomeDaColuna: null,
+        elementos: []
+    }
+
+    let IdCategoria = objCFP.results[index].id;
+
+    ObjElemento.NomeDaColuna = await SelecionandoNomeCategoria(objCFP, index);
+
+    // Coloca todos os elementos da coleção numerada em um objeto
+    do {
+        if(i === 0) {
+            aux = await consultarFilhosPagina(IdCategoria, undefined);
+            i++;
         }
-    }*/
+        else {
+            aux = await consultarFilhosPagina(IdCategoria, aux.next_cursor);
+        }
 
-    console.log(aux);
-    /*console.log("=========================================")
-    console.log(ObjElemento.elementos);*/
+        for (let i = 0; i < aux.results.length; i++) {
+            if(aux.results[i].hasOwnProperty('numbered_list_item')) {
+                SepararElementos(aux.results[i].numbered_list_item.rich_text[0].plain_text, dictTipos[ObjElemento.NomeDaColuna], ObjElemento);
+            }
+        }
+    } while (aux.next_cursor != null)
+
+    elementosGerais.push(ObjElemento);
 }
 
-//printar(ID_FILMES_LONGAS);
-printar("f7ad9de2-c931-4c57-8205-042bc557cc39");
+async function SelecionandoNomeCategoria(objCFP, index) {
 
-//"168ee2ea-8514-4871-a635-44d5ea4a0e62"
+    let aux = objCFP.results[index].heading_2.rich_text[0].plain_text;
 
+    return aux;
+}
 
+async function printar(idColuna) {
+    let aux = await consultarFilhosPagina(idColuna, undefined);
+
+    for(let i = 0; i < aux.results.length; i++) {
+        await SepararElementosAPI(idColuna, i, aux);
+    }
+
+    console.log(elementosGerais[4]);
+}
+
+printar(ID_COLUNA_DIREITA);

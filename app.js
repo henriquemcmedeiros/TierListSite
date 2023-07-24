@@ -144,10 +144,10 @@ async function criarString(objArquivo, tipo) {
                 .then(objAnimes => criarString(objAnimes, Tipo.SemData))
                 .then(txtAlbuns => console.log(txtAlbuns));*/
 
-let objAnimacoes = SepararElementosTxt("animacoes", Tipo.Filmes)
+/*let objAnimacoes = SepararElementosTxt("animacoes", Tipo.Filmes)
                 .then(objAnimacoes => criarString(objAnimacoes, Tipo.Filmes))
-                .then(txtAlbuns => console.log(txtAlbuns));
-
-/*let objAlbuns = SepararElementosTxt("albuns", Tipo.Albuns)
-                .then(objAlbuns => criarString(objAlbuns, Tipo.Albuns))
                 .then(txtAlbuns => console.log(txtAlbuns));*/
+
+let objAlbuns = SepararElementosTxt("albuns", Tipo.Albuns)
+                .then(objAlbuns => criarString(objAlbuns, Tipo.Albuns))
+                .then(txtAlbuns => console.log(txtAlbuns));
