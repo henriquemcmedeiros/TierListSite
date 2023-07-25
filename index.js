@@ -384,14 +384,14 @@ async function updateCategoria(idCategoria, stringFormatada) {
 }
 
 async function printar() {
-    let aux1 = await Busca(ID_COLUNA_DIREITA);
-    await printar2(aux1, 0);
+    await Busca(ID_COLUNA_DIREITA);
+    await printar2(ID_COLUNA_DIREITA);
 
-    let aux2 = await Busca(ID_COLUNA_ESQUERDA);
-    printar2(aux2, aux1.results.length);
+    await Busca(ID_COLUNA_ESQUERDA);
+    printar2(ID_COLUNA_ESQUERDA);
 }
 
-async function printar2(aux, comeco) {
+async function printar2a(aux, comeco) {
     for (let i = comeco; i < elementosGerais.length; i++) {
         let primeiraInteracao = true;
         let aux3 = {};
@@ -416,6 +416,36 @@ async function aFuncao(idColuna){
     }
 
     //console.log(aux);
+}
+
+async function printar2(idColuna) {
+    let auxColuna = await consultarFilhosPagina(idColuna, undefined);
+
+    for(let i = 0; i < auxColuna.results.length; i++){
+        let primeiraInteracao = true;
+        //console.log(auxColuna.results[i].id);
+        //let auxCategoria = await consultarFilhosPagina(auxColuna.results[i].id, undefined);
+
+        elementosGerais[i].elementos.sort(MeuSort);
+
+        do {
+            if(primeiraInteracao) {
+                auxElemento = await consultarFilhosPagina(auxColuna.results[i].id, undefined);
+                primeiraInteracao = false;
+            }
+            else {
+                auxElemento = await consultarFilhosPagina(auxColuna.results[i].id, auxElemento.next_cursor);
+            }
+
+            let limitador = (elementosGerais[i].elementos.length > 100) ? 100 : elementosGerais[i].elementos.length;
+
+            for (let j = 0; j < limitador; j++){
+                let stringFormatada = criarString(elementosGerais[i].elementos[j], elementosGerais[i].NomeDaCategoria);
+                await updateCategoria(auxElemento.results[j].id, stringFormatada);
+            }
+        } while (aux.next_cursor != null)
+        console.log("=======================================");
+    }
 }
 
 printar();
