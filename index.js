@@ -397,13 +397,12 @@ async function printar2(aux, comeco) {
         let aux3 = {};
 
         elementosGerais[i].elementos.sort(MeuSort);
-        console.log(elementosGerais[i].elementos);
-        continue;
+        //console.log(elementosGerais[i].elementos);
 
-            for (let j = 0; j < elementosGerais[i].elementos.length; j++){
-            let a = await criarString(elementosGerais[i].elementos[j], elementosGerais[i].NomeDaCategoria);
+        for (let j = 0; j < elementosGerais[i].elementos.length; j++){
+            let a = criarString(elementosGerais[i].elementos[j], elementosGerais[i].NomeDaCategoria);
             console.log(a);
-                }
+        }
         console.log("=======================================");
     }
     console.log("=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=");
