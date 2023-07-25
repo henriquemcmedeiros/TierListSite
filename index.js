@@ -38,7 +38,7 @@ const { Client } = require('@notionhq/client');
 // Init Client
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
-async function creteDatabase(parentId, DatabaseName) {
+/*async function creteDatabase(parentId, DatabaseName) {
   const response = await notion.databases.create({
       parent: {
         type: "page_id",
@@ -66,7 +66,13 @@ async function creteDatabase(parentId, DatabaseName) {
     });
   console.log(response);
   return response;
-};
+};*/
+
+/*async function consultarPagina(IdPagina) {
+    return await notion.blocks.retrieve({
+        block_id: IdPagina,
+    });
+}*/
 
 async function SepararElementos(string, tipo, ObjElemento) {
     let elemento = {}
@@ -165,12 +171,6 @@ async function SepararElementos(string, tipo, ObjElemento) {
     ObjElemento.elementos.push(elemento);
 }
 
-async function consultarPagina(IdPagina) {
-    return await notion.blocks.retrieve({
-        block_id: IdPagina,
-    });
-}
-
 async function consultarFilhosPagina(IdPagina, IdProxPágina) {
     return await notion.blocks.children.list({
         block_id: IdPagina,
@@ -179,8 +179,8 @@ async function consultarFilhosPagina(IdPagina, IdProxPágina) {
     });
 }
 
-async function SepararElementosAPI(idColuna, index, objCFP) {
-    let i = 0;
+async function SepararElementosAPI(index, objCFP) {
+    let primeiraInteracao = true;
     let aux;
 
     let ObjElemento = {
@@ -194,9 +194,9 @@ async function SepararElementosAPI(idColuna, index, objCFP) {
 
     // Coloca todos os elementos da coleção numerada em um objeto
     do {
-        if(i === 0) {
+        if(primeiraInteracao) {
             aux = await consultarFilhosPagina(IdCategoria, undefined);
-            i++;
+            primeiraInteracao = false;
         }
         else {
             aux = await consultarFilhosPagina(IdCategoria, aux.next_cursor);
@@ -213,20 +213,18 @@ async function SepararElementosAPI(idColuna, index, objCFP) {
 }
 
 async function SelecionandoNomeCategoria(objCFP, index) {
-
-    let aux = objCFP.results[index].heading_2.rich_text[0].plain_text;
-
-    return aux;
+    return objCFP.results[index].heading_2.rich_text[0].plain_text;
 }
 
-async function printar(idColuna) {
+async function Busca(idColuna) {
     let aux = await consultarFilhosPagina(idColuna, undefined);
 
     for(let i = 0; i < aux.results.length; i++) {
-        await SepararElementosAPI(idColuna, i, aux);
+        await SepararElementosAPI(i, aux);
     }
 
-    console.log(elementosGerais[4]);
+    console.log(elementosGerais);
 }
 
-printar(ID_COLUNA_DIREITA);
+Busca(ID_COLUNA_DIREITA);
+Busca(ID_COLUNA_ESQUERDA);
