@@ -3,6 +3,8 @@ const ID_HENRICOLA = "cb95e42a60fb4ac6a1b42daa9fd4c832";
 const ID_COLUNA_ESQUERDA = "937e2804-92ff-4994-b820-9e7130487fb6";
 const ID_COLUNA_DIREITA = "f7ad9de2-c931-4c57-8205-042bc557cc39";
 
+const NUM_ELEMENTOS_COLUNA = 8;
+
 const Tipo = {
 	SemData: "Sem data",
 	Filmes: "Formato de filmes",
@@ -47,6 +49,7 @@ const dictTipos = {
     "Reality Shows": Tipo.SemData,
     "RPG\’s": Tipo.SemData,
     "Shows": Tipo.Shows,
+    "Teste": Tipo.SemData,
 }
 
 let elementosGerais = [];
@@ -243,6 +246,7 @@ async function Busca(idColuna) {
         await SepararElementosAPI(i, aux);
     }
 
+    return aux;
     //console.log(elementosGerais)
 }
 
@@ -315,7 +319,7 @@ async function printarID(idColuna, categoriaNome, stringProcessada) {
     return novoTxt;
 }*/
 
-async function criarString(objArquivo, tipo) {
+function criarString(objArquivo, tipo) {
     let novoTxt = "";
 
     tipo = dictTipos[tipo];
@@ -340,6 +344,8 @@ async function criarString(objArquivo, tipo) {
         novoTxt += `${objArquivo.Nome} - ${nomeArtista} - ${objArquivo.Mes}/${objArquivo.Ano} - ${objArquivo.MusicaBoa}/${objArquivo.Musicas} - ${objArquivo.Porcentagem}%`;
     } else if (tipo === Tipo.Shows) {
         novoTxt += `${objArquivo.Nome} - ${objArquivo.Data}`
+    } else if (tipo === Tipo.TedTalks) {
+        novoTxt += `${objArquivo.Nome} - ${objArquivo.Palestrante} - ${objArquivo.Nota}/10`;
     }
     return novoTxt;
 }
@@ -361,29 +367,60 @@ function MeuSort(a, b) {
     
 }
 
-async function printar() {
-    //await criarString(a, Tipo.Albuns).then((res) => console.log(res));
-    await Busca(ID_COLUNA_DIREITA);
+async function updateCategoria(idCategoria, stringFormatada) {
+    await notion.blocks.update({
+        "block_id": idCategoria,
+        "numbered_list_item": {
+            "rich_text": [
+                {
+                    "text": {
+                        "content": stringFormatada,
+                    },
+                }
+            ]
+        }
+    });
+    console.log(stringFormatada);
+}
 
-    for (let i = 0; i < elementosGerais.length; i++) {
+async function printar() {
+    let aux1 = await Busca(ID_COLUNA_DIREITA);
+    await printar2(aux1, 0);
+
+    let aux2 = await Busca(ID_COLUNA_ESQUERDA);
+    printar2(aux2, aux1.results.length);
+}
+
+async function printar2(aux, comeco) {
+    for (let i = comeco; i < elementosGerais.length; i++) {
+        let primeiraInteracao = true;
+        let aux3 = {};
+
         elementosGerais[i].elementos.sort(MeuSort);
         console.log(elementosGerais[i].elementos);
         continue;
 
-        for (let j = 0; j < elementosGerais[i].elementos.length; j++){
+            for (let j = 0; j < elementosGerais[i].elementos.length; j++){
             let a = await criarString(elementosGerais[i].elementos[j], elementosGerais[i].NomeDaCategoria);
             console.log(a);
-        }
+                }
         console.log("=======================================");
-        
-        //let formatado = await criarStringVariosElementos(elementosGerais[i].elementos);
-        //console.log(formatado);
     }
+    console.log("=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=");
 }
 
-printar()
+async function aFuncao(idColuna){
+    let aux = await consultarFilhosPagina(idColuna, undefined);
+
+    for(let i = 0; i < aux.results.length; i++) {
+        console.log(aux.results[i].id);
+    }
+
+    //console.log(aux);
+}
+
+printar();
+//updateCategoria('e35c774a-e241-4f29-a355-21ae7579e403');
+//aFuncao(ID_COLUNA_DIREITA);
 
 //printarID(ID_COLUNA_ESQUERDA, "Ted Talks", "TedTesteKauan - Henrique Marques - 10/10");
-
-//Busca(ID_COLUNA_DIREITA);
-//Busca(ID_COLUNA_ESQUERDA);
