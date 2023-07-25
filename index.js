@@ -11,7 +11,26 @@ const Tipo = {
     Shows: "Formato Shows",
 }
 
-let dictTipos = {
+const Categoria = [
+    "Animes",
+    "Séries",
+    "Animações",
+    "Jogos - Videogame",
+    "Jogos - Tabuleiro",
+    "Mangas e HQ\’s",
+    "Livros",
+    "Ted Talks",
+    "Filmes - Longas",
+    "Filmes - Curtas",
+    "Comédia",
+    "Documentários",
+    "Álbuns",
+    "Reality Shows",
+    "RPG\’s",
+    "Shows",
+]
+
+const dictTipos = {
     "Animes": Tipo.SemData,
     "Séries": Tipo.SemData,
     "Animações": Tipo.Filmes,
@@ -34,6 +53,7 @@ let elementosGerais = [];
 
 const dotenv = require('dotenv').config();
 const { Client } = require('@notionhq/client');
+const e = require('express');
 
 // Init Client
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
@@ -184,13 +204,13 @@ async function SepararElementosAPI(index, objCFP) {
     let aux;
 
     let ObjElemento = {
-        NomeDaColuna: null,
+        NomeDaCategoria: null,
         elementos: []
     }
 
     let IdCategoria = objCFP.results[index].id;
 
-    ObjElemento.NomeDaColuna = await SelecionandoNomeCategoria(objCFP, index);
+    ObjElemento.NomeDaCategoria = await SelecionandoNomeCategoria(objCFP, index);
 
     // Coloca todos os elementos da coleção numerada em um objeto
     do {
@@ -204,7 +224,7 @@ async function SepararElementosAPI(index, objCFP) {
 
         for (let i = 0; i < aux.results.length; i++) {
             if(aux.results[i].hasOwnProperty('numbered_list_item')) {
-                SepararElementos(aux.results[i].numbered_list_item.rich_text[0].plain_text, dictTipos[ObjElemento.NomeDaColuna], ObjElemento);
+                SepararElementos(aux.results[i].numbered_list_item.rich_text[0].plain_text, dictTipos[ObjElemento.NomeDaCategoria], ObjElemento);
             }
         }
     } while (aux.next_cursor != null)
@@ -223,8 +243,147 @@ async function Busca(idColuna) {
         await SepararElementosAPI(i, aux);
     }
 
-    console.log(elementosGerais);
+    //console.log(elementosGerais)
 }
 
-Busca(ID_COLUNA_DIREITA);
-Busca(ID_COLUNA_ESQUERDA);
+async function ColocarItem(IdCategoria, stringProcessada) {
+    const response = await notion.blocks.children.append({
+      block_id: IdCategoria,
+      children: [
+        {
+          "numbered_list_item": {
+            "rich_text": [
+              {
+                "text": {
+                  "content": stringProcessada,
+                }
+              }
+            ]
+          }
+        },
+      ],
+    });
+    console.log(response);
+}
+
+async function printarID(idColuna, categoriaNome, stringProcessada) {
+    let aux = await consultarFilhosPagina(idColuna, undefined);
+
+    for (let i = 0; i < aux.results.length; i++) {
+        //console.log(`Categoria atual: ${aux.results[i].heading_2.rich_text[0].plain_text} - Categoria para adicionar: ${categoriaNome}`);
+        if(aux.results[i].heading_2.rich_text[0].plain_text === categoriaNome) {
+            await ColocarItem(aux.results[i].id, stringProcessada);
+            break;
+        }
+    }
+}
+
+/*async function ChecarTipo(idColuna, index) {
+    let aux = await consultarFilhosPagina(idColuna, undefined);
+
+    return aux.results[index].heading_2.rich_text[0].plain_text;
+}*/
+
+/*async function criarStringVariosElementos(objArquivo, tipo) {
+    let novoTxt = "";
+
+    if (tipo === Tipo.SemData) {
+        for(let i = 0; i < Object.keys(objArquivo).length; i++) {
+            novoTxt += `${objArquivo[i].Nome} - ${objArquivo[i].Nota}/10\n`;
+        }
+    } else if (tipo === Tipo.Filmes) {
+        for(let i = 0; i < Object.keys(objArquivo).length; i++) {
+            if (objArquivo[i].Ano != null) {
+                novoTxt += `${objArquivo[i].Nome} (${objArquivo[i].Ano}) - ${objArquivo[i].Nota}/10\n`;
+            }
+            else {
+                novoTxt += `${objArquivo[i].Nome} - ${objArquivo[i].Nota}/10\n`;
+            }
+        }
+    } else if (tipo === Tipo.Albuns) {
+        for(let i = 0; i < Object.keys(objArquivo).length; i++) {
+            let nomeArtista = "";
+            for (let j = 0; j < objArquivo[i].NomeArtista.length; j++) {
+                nomeArtista += objArquivo[i].NomeArtista[j];
+                if (!(j === objArquivo[i].NomeArtista.length - 1)) {
+                    nomeArtista += ", "
+                }
+            }
+            novoTxt += `${objArquivo[i].Nome} - ${nomeArtista} - ${objArquivo[i].Mes}/${objArquivo[i].Ano} - ${objArquivo[i].MusicaBoa}/${objArquivo[i].Musicas} - ${objArquivo[i].Porcentagem}%`;
+        }
+    }
+    return novoTxt;
+}*/
+
+async function criarString(objArquivo, tipo) {
+    let novoTxt = "";
+
+    tipo = dictTipos[tipo];
+
+    if (tipo === Tipo.SemData) {
+        novoTxt += `${objArquivo.Nome} - ${objArquivo.Nota}/10`;
+    } else if (tipo === Tipo.Filmes) {
+        if (objArquivo.Ano != null) {
+            novoTxt += `${objArquivo.Nome} (${objArquivo.Ano}) - ${objArquivo.Nota}/10`;
+        }
+        else {
+            novoTxt += `${objArquivo.Nome} - ${objArquivo.Nota}/10`;
+        }
+    } else if (tipo === Tipo.Albuns) {
+        let nomeArtista = "";
+        for (let j = 0; j < objArquivo.NomeArtista.length; j++) {
+            nomeArtista += objArquivo.NomeArtista[j];
+            if (!(j === objArquivo.NomeArtista.length - 1)) {
+                nomeArtista += ", "
+            }
+        }
+        novoTxt += `${objArquivo.Nome} - ${nomeArtista} - ${objArquivo.Mes}/${objArquivo.Ano} - ${objArquivo.MusicaBoa}/${objArquivo.Musicas} - ${objArquivo.Porcentagem}%`;
+    } else if (tipo === Tipo.Shows) {
+        novoTxt += `${objArquivo.Nome} - ${objArquivo.Data}`
+    }
+    return novoTxt;
+}
+
+function MeuSort(a, b) {
+    if(a.hasOwnProperty('Nota')) {
+        if (a.Nota > b.Nota)
+            return -1;
+        if (a.Nota < b.Nota)
+            return 1;
+        return 0;
+    } else if(a.hasOwnProperty('Porcentagem')) {
+        if (a.Porcentagem > b.Porcentagem)
+            return -1;
+        if (a.Porcentagem < b.Porcentagem)
+            return 1;
+        return 0;
+    }
+    
+}
+
+async function printar() {
+    //await criarString(a, Tipo.Albuns).then((res) => console.log(res));
+    await Busca(ID_COLUNA_DIREITA);
+
+    for (let i = 0; i < elementosGerais.length; i++) {
+        elementosGerais[i].elementos.sort(MeuSort);
+        console.log(elementosGerais[i].elementos);
+        continue;
+
+        for (let j = 0; j < elementosGerais[i].elementos.length; j++){
+            let a = await criarString(elementosGerais[i].elementos[j], elementosGerais[i].NomeDaCategoria);
+            console.log(a);
+        }
+        console.log("=======================================");
+        
+        //let formatado = await criarStringVariosElementos(elementosGerais[i].elementos);
+        //console.log(formatado);
+    }
+}
+
+printar()
+
+//printarID(ID_COLUNA_ESQUERDA, "Ted Talks", "TedTesteKauan - Henrique Marques - 10/10");
+
+//Busca(ID_COLUNA_DIREITA);
+//Busca(ID_COLUNA_ESQUERDA);

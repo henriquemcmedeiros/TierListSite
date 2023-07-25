@@ -140,6 +140,19 @@ async function criarString(objArquivo, tipo) {
     return novoTxt;
 }
 
+let a = {
+    Ano: "2005",
+    Mes: "06",
+    MusicaBoa: 13,
+    Musicas: 13,
+    Nome: "X&Y",
+}
+
+async function printar() {
+    await criarString(a, Tipo.Albuns).then((res) => console.log(res));
+}
+
+printar();
 /*let objAnimes = SepararElementosTxt("animes", Tipo.SemData)
                 .then(objAnimes => criarString(objAnimes, Tipo.SemData))
                 .then(txtAlbuns => console.log(txtAlbuns));*/
@@ -148,6 +161,5 @@ async function criarString(objArquivo, tipo) {
                 .then(objAnimacoes => criarString(objAnimacoes, Tipo.Filmes))
                 .then(txtAlbuns => console.log(txtAlbuns));*/
 
-let objAlbuns = SepararElementosTxt("albuns", Tipo.Albuns)
-                .then(objAlbuns => criarString(objAlbuns, Tipo.Albuns))
-                .then(txtAlbuns => console.log(txtAlbuns));
+/*let objAlbuns = SepararElementosTxt("albuns", Tipo.Albuns)
+                .then(txtAlbuns => console.log(txtAlbuns));*/
