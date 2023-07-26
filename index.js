@@ -61,43 +61,152 @@ const e = require('express');
 // Init Client
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
-/*async function creteDatabase(parentId, DatabaseName) {
-  const response = await notion.databases.create({
-      parent: {
-        type: "page_id",
-        page_id: `${parentId}`,
-      },
-      title: [
-        {
-          type: "text",
-          text: {
-            content: `${DatabaseName}`,
-            link: null,
-          },
-        },
-      ],
-        properties: {
-            Nome: {
-                title: {},
-            },
-            Nota: {
-                number: {
-                format: "percent",
-            },
-        }
-        }
-    });
-  console.log(response);
-  return response;
-};*/
+async function printar() {
+    await Busca(ID_COLUNA_DIREITA);
+    await printar2(ID_COLUNA_DIREITA);
 
-/*async function consultarPagina(IdPagina) {
-    return await notion.blocks.retrieve({
+    await Busca(ID_COLUNA_ESQUERDA);
+    printar2(ID_COLUNA_ESQUERDA);
+}
+
+async function Busca(idColuna) {
+    let aux = await consultarFilhosPagina(idColuna, undefined);
+
+    for(let i = 0; i < aux.results.length; i++) {
+        await SepararElementosAPI(i, aux);
+    }
+
+    return aux;
+}
+
+async function printar2(idColuna) {
+    let auxColuna = await consultarFilhosPagina(idColuna, undefined);
+
+    for(let i = 0; i < auxColuna.results.length; i++){
+        let comeco = 0;
+        let primeiraInteracao = true;
+
+        elementosGerais[i].elementos.sort(MeuSort);
+
+        do {
+            if(primeiraInteracao) {
+                auxElemento = await consultarFilhosPagina(auxColuna.results[i].id, undefined);
+                primeiraInteracao = false;
+            }
+            else {
+                auxElemento = await consultarFilhosPagina(auxColuna.results[i].id, auxElemento.next_cursor);
+            }
+
+            let limitador = (elementosGerais[i].elementos.length - comeco > 100) ? 100 : auxElemento.results.length;
+
+            console.log(`Começo: ${comeco} - Limitador: ${limitador}`);
+            
+            let controlador = 0;
+
+            for (let j = comeco; j < limitador + comeco; j++){
+                let stringFormatada = criarString(elementosGerais[i].elementos[j], elementosGerais[i].NomeDaCategoria);
+                await updateCategoria(auxElemento.results[controlador].id, stringFormatada);
+                controlador++;
+            }
+            comeco += 100;
+        } while (auxElemento.next_cursor != null)
+        console.log("=======================================");
+    }
+}
+
+async function consultarFilhosPagina(IdPagina, IdProxPágina) {
+    return await notion.blocks.children.list({
         block_id: IdPagina,
+        page_size: 100,
+        start_cursor: IdProxPágina,
     });
-}*/
+}
 
-async function SepararElementos(string, tipo, ObjElemento) {
+async function SepararElementosAPI(index, objCFP) {
+    let primeiraInteracao = true;
+    let aux;
+
+    let ObjElemento = {
+        NomeDaCategoria: null,
+        elementos: []
+    }
+
+    let IdCategoria = objCFP.results[index].id;
+
+    ObjElemento.NomeDaCategoria = await SelecionandoNomeCategoria(objCFP, index);
+
+    // Coloca todos os elementos da coleção numerada em um objeto
+    do {
+        if(primeiraInteracao) {
+            aux = await consultarFilhosPagina(IdCategoria, undefined);
+            primeiraInteracao = false;
+        }
+        else {
+            aux = await consultarFilhosPagina(IdCategoria, aux.next_cursor);
+        }
+
+        for (let i = 0; i < aux.results.length; i++) {
+            if(aux.results[i].hasOwnProperty('numbered_list_item')) {
+                SepararElementos(aux.results[i].numbered_list_item.rich_text[0].plain_text, dictTipos[ObjElemento.NomeDaCategoria], ObjElemento);
+            }
+        }
+    } while (aux.next_cursor != null)
+
+    elementosGerais.push(ObjElemento);
+}
+
+function criarString(objArquivo, tipo) {
+    let novoTxt = "";
+
+    tipo = dictTipos[tipo];
+
+    if (tipo === Tipo.SemData) {
+        novoTxt += `${objArquivo.Nome} - ${objArquivo.Nota}/10`;
+    } else if (tipo === Tipo.Filmes) {
+        if (objArquivo.Ano != null) {
+            novoTxt += `${objArquivo.Nome} (${objArquivo.Ano}) - ${objArquivo.Nota}/10`;
+        }
+        else {
+            novoTxt += `${objArquivo.Nome} - ${objArquivo.Nota}/10`;
+        }
+    } else if (tipo === Tipo.Albuns) {
+        let nomeArtista = "";
+        for (let j = 0; j < objArquivo.NomeArtista.length; j++) {
+            nomeArtista += objArquivo.NomeArtista[j];
+            if (!(j === objArquivo.NomeArtista.length - 1)) {
+                nomeArtista += ", "
+            }
+        }
+        novoTxt += `${objArquivo.Nome} - ${nomeArtista} - ${objArquivo.Mes}/${objArquivo.Ano} - ${objArquivo.MusicaBoa}/${objArquivo.Musicas} - ${objArquivo.Porcentagem}%`;
+    } else if (tipo === Tipo.Shows) {
+        novoTxt += `${objArquivo.Nome} - ${objArquivo.Data}`
+    } else if (tipo === Tipo.TedTalks) {
+        novoTxt += `${objArquivo.Nome} - ${objArquivo.Palestrante} - ${objArquivo.Nota}/10`;
+    }
+    return novoTxt;
+}
+
+async function updateCategoria(idCategoria, stringFormatada) {
+    await notion.blocks.update({
+        "block_id": idCategoria,
+        "numbered_list_item": {
+            "rich_text": [
+                {
+                    "text": {
+                        "content": stringFormatada,
+                    },
+                }
+            ]
+        }
+    });
+    console.log(stringFormatada);
+}
+
+async function SelecionandoNomeCategoria(objCFP, index) {
+    return objCFP.results[index].heading_2.rich_text[0].plain_text;
+}
+
+function SepararElementos(string, tipo, ObjElemento) {
     let elemento = {}
     let item = string.split(" - ");
     if (tipo === Tipo.SemData || tipo === Tipo.Filmes) {
@@ -194,63 +303,59 @@ async function SepararElementos(string, tipo, ObjElemento) {
     ObjElemento.elementos.push(elemento);
 }
 
-async function consultarFilhosPagina(IdPagina, IdProxPágina) {
-    return await notion.blocks.children.list({
-        block_id: IdPagina,
-        page_size: 100,
-        start_cursor: IdProxPágina,
+function MeuSort(a, b) {
+    if(a.hasOwnProperty('Nota')) {
+        if (a.Nota > b.Nota)
+            return -1;
+        if (a.Nota < b.Nota)
+            return 1;
+        return 0;
+    } else if(a.hasOwnProperty('Porcentagem')) {
+        if (a.Porcentagem > b.Porcentagem)
+            return -1;
+        if (a.Porcentagem < b.Porcentagem)
+            return 1;
+        return 0;
+    }
+    
+}
+/*async function creteDatabase(parentId, DatabaseName) {
+  const response = await notion.databases.create({
+      parent: {
+        type: "page_id",
+        page_id: `${parentId}`,
+      },
+      title: [
+        {
+          type: "text",
+          text: {
+            content: `${DatabaseName}`,
+            link: null,
+          },
+        },
+      ],
+        properties: {
+            Nome: {
+                title: {},
+            },
+            Nota: {
+                number: {
+                format: "percent",
+            },
+        }
+        }
     });
-}
+  console.log(response);
+  return response;
+};*/
 
-async function SepararElementosAPI(index, objCFP) {
-    let primeiraInteracao = true;
-    let aux;
+/*async function consultarPagina(IdPagina) {
+    return await notion.blocks.retrieve({
+        block_id: IdPagina,
+    });
+}*/
 
-    let ObjElemento = {
-        NomeDaCategoria: null,
-        elementos: []
-    }
-
-    let IdCategoria = objCFP.results[index].id;
-
-    ObjElemento.NomeDaCategoria = await SelecionandoNomeCategoria(objCFP, index);
-
-    // Coloca todos os elementos da coleção numerada em um objeto
-    do {
-        if(primeiraInteracao) {
-            aux = await consultarFilhosPagina(IdCategoria, undefined);
-            primeiraInteracao = false;
-        }
-        else {
-            aux = await consultarFilhosPagina(IdCategoria, aux.next_cursor);
-        }
-
-        for (let i = 0; i < aux.results.length; i++) {
-            if(aux.results[i].hasOwnProperty('numbered_list_item')) {
-                SepararElementos(aux.results[i].numbered_list_item.rich_text[0].plain_text, dictTipos[ObjElemento.NomeDaCategoria], ObjElemento);
-            }
-        }
-    } while (aux.next_cursor != null)
-
-    elementosGerais.push(ObjElemento);
-}
-
-async function SelecionandoNomeCategoria(objCFP, index) {
-    return objCFP.results[index].heading_2.rich_text[0].plain_text;
-}
-
-async function Busca(idColuna) {
-    let aux = await consultarFilhosPagina(idColuna, undefined);
-
-    for(let i = 0; i < aux.results.length; i++) {
-        await SepararElementosAPI(i, aux);
-    }
-
-    return aux;
-    //console.log(elementosGerais)
-}
-
-async function ColocarItem(IdCategoria, stringProcessada) {
+/*async function ColocarItem(IdCategoria, stringProcessada) {
     const response = await notion.blocks.children.append({
       block_id: IdCategoria,
       children: [
@@ -268,9 +373,9 @@ async function ColocarItem(IdCategoria, stringProcessada) {
       ],
     });
     console.log(response);
-}
+}*/
 
-async function printarID(idColuna, categoriaNome, stringProcessada) {
+/*async function printarID(idColuna, categoriaNome, stringProcessada) {
     let aux = await consultarFilhosPagina(idColuna, undefined);
 
     for (let i = 0; i < aux.results.length; i++) {
@@ -280,7 +385,7 @@ async function printarID(idColuna, categoriaNome, stringProcessada) {
             break;
         }
     }
-}
+}*/
 
 /*async function ChecarTipo(idColuna, index) {
     let aux = await consultarFilhosPagina(idColuna, undefined);
@@ -319,79 +424,7 @@ async function printarID(idColuna, categoriaNome, stringProcessada) {
     return novoTxt;
 }*/
 
-function criarString(objArquivo, tipo) {
-    let novoTxt = "";
-
-    tipo = dictTipos[tipo];
-
-    if (tipo === Tipo.SemData) {
-        novoTxt += `${objArquivo.Nome} - ${objArquivo.Nota}/10`;
-    } else if (tipo === Tipo.Filmes) {
-        if (objArquivo.Ano != null) {
-            novoTxt += `${objArquivo.Nome} (${objArquivo.Ano}) - ${objArquivo.Nota}/10`;
-        }
-        else {
-            novoTxt += `${objArquivo.Nome} - ${objArquivo.Nota}/10`;
-        }
-    } else if (tipo === Tipo.Albuns) {
-        let nomeArtista = "";
-        for (let j = 0; j < objArquivo.NomeArtista.length; j++) {
-            nomeArtista += objArquivo.NomeArtista[j];
-            if (!(j === objArquivo.NomeArtista.length - 1)) {
-                nomeArtista += ", "
-            }
-        }
-        novoTxt += `${objArquivo.Nome} - ${nomeArtista} - ${objArquivo.Mes}/${objArquivo.Ano} - ${objArquivo.MusicaBoa}/${objArquivo.Musicas} - ${objArquivo.Porcentagem}%`;
-    } else if (tipo === Tipo.Shows) {
-        novoTxt += `${objArquivo.Nome} - ${objArquivo.Data}`
-    } else if (tipo === Tipo.TedTalks) {
-        novoTxt += `${objArquivo.Nome} - ${objArquivo.Palestrante} - ${objArquivo.Nota}/10`;
-    }
-    return novoTxt;
-}
-
-function MeuSort(a, b) {
-    if(a.hasOwnProperty('Nota')) {
-        if (a.Nota > b.Nota)
-            return -1;
-        if (a.Nota < b.Nota)
-            return 1;
-        return 0;
-    } else if(a.hasOwnProperty('Porcentagem')) {
-        if (a.Porcentagem > b.Porcentagem)
-            return -1;
-        if (a.Porcentagem < b.Porcentagem)
-            return 1;
-        return 0;
-    }
-    
-}
-
-async function updateCategoria(idCategoria, stringFormatada) {
-    await notion.blocks.update({
-        "block_id": idCategoria,
-        "numbered_list_item": {
-            "rich_text": [
-                {
-                    "text": {
-                        "content": stringFormatada,
-                    },
-                }
-            ]
-        }
-    });
-    console.log(stringFormatada);
-}
-
-async function printar() {
-    await Busca(ID_COLUNA_DIREITA);
-    await printar2(ID_COLUNA_DIREITA);
-
-    await Busca(ID_COLUNA_ESQUERDA);
-    printar2(ID_COLUNA_ESQUERDA);
-}
-
-async function printar2a(aux, comeco) {
+/*async function printar2a(aux, comeco) {
     for (let i = comeco; i < elementosGerais.length; i++) {
         let primeiraInteracao = true;
         let aux3 = {};
@@ -406,9 +439,9 @@ async function printar2a(aux, comeco) {
         console.log("=======================================");
     }
     console.log("=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=");
-}
+}*/
 
-async function aFuncao(idColuna){
+/*async function aFuncao(idColuna){
     let aux = await consultarFilhosPagina(idColuna, undefined);
 
     for(let i = 0; i < aux.results.length; i++) {
@@ -416,40 +449,13 @@ async function aFuncao(idColuna){
     }
 
     //console.log(aux);
-}
+}*/
 
-async function printar2(idColuna) {
-    let auxColuna = await consultarFilhosPagina(idColuna, undefined);
 
-    for(let i = 0; i < auxColuna.results.length; i++){
-        let primeiraInteracao = true;
-        //console.log(auxColuna.results[i].id);
-        //let auxCategoria = await consultarFilhosPagina(auxColuna.results[i].id, undefined);
 
-        elementosGerais[i].elementos.sort(MeuSort);
 
-        do {
-            if(primeiraInteracao) {
-                auxElemento = await consultarFilhosPagina(auxColuna.results[i].id, undefined);
-                primeiraInteracao = false;
-            }
-            else {
-                auxElemento = await consultarFilhosPagina(auxColuna.results[i].id, auxElemento.next_cursor);
-            }
-
-            let limitador = (elementosGerais[i].elementos.length > 100) ? 100 : elementosGerais[i].elementos.length;
-
-            for (let j = 0; j < limitador; j++){
-                let stringFormatada = criarString(elementosGerais[i].elementos[j], elementosGerais[i].NomeDaCategoria);
-                await updateCategoria(auxElemento.results[j].id, stringFormatada);
-            }
-        } while (aux.next_cursor != null)
-        console.log("=======================================");
-    }
-}
-
+// ===== MAIN =====
 printar();
-//updateCategoria('e35c774a-e241-4f29-a355-21ae7579e403');
 //aFuncao(ID_COLUNA_DIREITA);
 
 //printarID(ID_COLUNA_ESQUERDA, "Ted Talks", "TedTesteKauan - Henrique Marques - 10/10");
