@@ -44,14 +44,16 @@ let ObjContador = {
     TedTalks: 0,
 }
 
-let ObjPrincipal = [];
-
 let arrElem = [];
+
+let ObjPrincipal = [];
 
 let Colunas = {};
 let Categorias = {};
 let Elementos = {};
 let elemento = {};
+
+let idInicialCategoria = 0
 
 async function mainEspecifica(CategoriaProcurada){
     Colunas = await consultarFilhosPagina(ID_TIERLIST, undefined);
@@ -95,9 +97,13 @@ async function mainEspecifica(CategoriaProcurada){
 
                 for (let k = 0; k < ObjCategoria.NumElementos; k++) {
                     let stringFormatada = criarString(ObjCategoria.elementos[k], ObjCategoria.NomeDaCategoria);
-                    console.log(k);
-                    await updateCategoria(arrElem[k], stringFormatada);
+                    //console.log(`k: ${k} - idInicialCategoria: ${idInicialCategoria}`);
+                    let fezUpdate = await updateCategoria(arrElem[k], stringFormatada);
+                    if (!fezUpdate) {
+                        k--;
+                    }
                 }
+
                 console.log("=========================");
                 ObjPrincipal.push(ObjCategoria);
             }
@@ -107,12 +113,14 @@ async function mainEspecifica(CategoriaProcurada){
     //console.log(Colunas);
 }
 
-async function mainGeral(){
+async function mainGeral(NomeCategoria = "", input = ""){
     Colunas = await consultarFilhosPagina(ID_TIERLIST, undefined);
 
     for(let i = 0; i < Colunas.results.length; i++) {
-        arrElem = [];
         Categorias = await consultarFilhosPagina(Colunas.results[i].id, undefined);
+        arrElem = [];
+        idInicialCategoria = 0;
+        let primeiraInteracaoColocar = true;
 
         for(let j = 0; j < Categorias.results.length; j++) {
             let primeiraInteracao = true;
@@ -124,6 +132,11 @@ async function mainGeral(){
             }
 
             ObjCategoria.NomeDaCategoria = Categorias.results[j].heading_2.rich_text[0].plain_text;
+
+            if (input !== "" && NomeCategoria === ObjCategoria.NomeDaCategoria && primeiraInteracaoColocar) {
+                await ColocarItem(Categorias.results[j].id, input);
+                primeiraInteracaoColocar = false;
+            }
 
             do {
                 if(primeiraInteracao) {
@@ -148,9 +161,14 @@ async function mainGeral(){
 
             for (let k = 0; k < ObjCategoria.NumElementos; k++) {
                 let stringFormatada = criarString(ObjCategoria.elementos[k], ObjCategoria.NomeDaCategoria);
-                console.log(k);
-                await updateCategoria(arrElem[k], stringFormatada);
+                //console.log(`k: ${k} - idInicialCategoria: ${idInicialCategoria}`);
+                let fezUpdate = await updateCategoria(arrElem[idInicialCategoria + k], stringFormatada);
+                if (!fezUpdate) {
+                    k--;
+                }
             }
+            idInicialCategoria += ObjCategoria.NumElementos;
+
             console.log("=========================");
             ObjPrincipal.push(ObjCategoria);
         }
@@ -372,14 +390,11 @@ async function updateCategoria(idElemento, stringFormatada) {
         }
         else {
             console.log(stringFormatada);
+            return true;
         }
     } catch (error) {
-        let aux = await consultarFilhosPagina(idElemento, undefined);
-        console.log(aux);
-        if (aux.results[0].numbered_list_item.rich_text[0].plain_text !== stringFormatada) {
-            await updateCategoria(idElemento, stringFormatada);
-        }
         console.error(error);
+        return false;
     }
 }
 
@@ -489,6 +504,31 @@ async function contadorElementosCategoria(){
     contadorElementosCategoriaAgrupado();
 }
 
+async function ColocarItem(IdCategoria, stringProcessada) {
+    const response = await notion.blocks.children.append({
+      block_id: IdCategoria,
+      children: [
+        {
+          "numbered_list_item": {
+            "rich_text": [
+              {
+                "text": {
+                  "content": stringProcessada,
+                }
+              }
+            ]
+          }
+        },
+      ],
+    });
+    console.log(response);
+}
+
 //mainGeral();
-contadorElementosCategoria();
+
+//mainGeral("Animes", "TesteAnime - 10/10");
+//mainGeral("Filmes - Longas", "TesteFilmes - 10/10");
+
+
+//contadorElementosCategoria();
 //mainEspecifica("Filmes - Curtas");
