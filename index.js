@@ -51,7 +51,6 @@ let ObjPrincipal = [];
 let Colunas = {};
 let Categorias = {};
 let Elementos = {};
-let elemento = {};
 
 let idInicialCategoria = 0
 
@@ -526,9 +525,14 @@ async function ColocarItem(IdCategoria, stringProcessada) {
 
 //mainGeral();
 
-//mainGeral("Animes", "TesteAnime - 10/10");
+//mainGeral("Animações", "Liga da Justiça: Ponto de Ignição (2013) - 6,7");
 //mainGeral("Filmes - Longas", "TesteFilmes - 10/10");
+//mainGeral("Álbuns", "Don't Forget About Me, Demos - Dominic Fike - 10/2018 - 6/6 - 100%");
+//mainGeral("Animes", "TesteFilmes - 10/10");
 
+//mainGeral("Animações", "Liga da Justiça: Ponto de Ignição (2013) - 6,7");
 
 //contadorElementosCategoria();
-//mainEspecifica("Filmes - Curtas");
+/*consultarFilhosPagina(ID_TIERLIST).then((a) => {
+    console.log(a);
+});*/
