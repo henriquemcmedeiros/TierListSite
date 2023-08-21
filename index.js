@@ -44,7 +44,7 @@ let ObjContador = {
     TedTalks: 0,
 }
 
-let arrElem = [];
+let arrElemid = [];
 
 let ObjPrincipal = [];
 
@@ -54,70 +54,12 @@ let Elementos = {};
 
 let idInicialCategoria = 0
 
-async function mainEspecifica(CategoriaProcurada){
-    Colunas = await consultarFilhosPagina(ID_TIERLIST, undefined);
-
-    for(let i = 0; i < Colunas.results.length; i++) {
-        Categorias = await consultarFilhosPagina(Colunas.results[i].id, undefined);
-
-        for(let j = 0; j < Categorias.results.length; j++) {
-            if (CategoriaProcurada == Categorias.results[j].heading_2.rich_text[0].plain_text) {
-                let primeiraInteracao = true;
-                let comeco = 0;
-
-                let ObjCategoria = {
-                    NomeDaCategoria: null,
-                    NumElementos: null,
-                    elementos: []
-                }
-
-                ObjCategoria.NomeDaCategoria = Categorias.results[j].heading_2.rich_text[0].plain_text;
-
-                do {
-                    if(primeiraInteracao) {
-                        Elementos = await consultarFilhosPagina(Categorias.results[j].id, undefined);
-                        primeiraInteracao = false;
-                    }
-                    else {
-                        Elementos = await consultarFilhosPagina(Categorias.results[j].id, Elementos.next_cursor);
-                    }
-            
-                    for (let k = 0; k < Elementos.results.length; k++) {
-                        if(Elementos.results[k].hasOwnProperty('numbered_list_item')) {
-                            elemento = SepararElementos(Elementos.results[k].numbered_list_item.rich_text[0].plain_text, dictTipos[ObjCategoria.NomeDaCategoria], ObjCategoria);
-
-                            arrElem.push(Elementos.results[k].id)
-                        }
-                    }
-                } while (Elementos.next_cursor != null)
-
-                ObjCategoria.NumElementos = ObjCategoria.elementos.length;
-                ObjCategoria.elementos.sort(MeuSort);
-
-                for (let k = 0; k < ObjCategoria.NumElementos; k++) {
-                    let stringFormatada = criarString(ObjCategoria.elementos[k], ObjCategoria.NomeDaCategoria);
-                    //console.log(`k: ${k} - idInicialCategoria: ${idInicialCategoria}`);
-                    let fezUpdate = await updateCategoria(arrElem[k], stringFormatada);
-                    if (!fezUpdate) {
-                        k--;
-                    }
-                }
-
-                console.log("=========================");
-                ObjPrincipal.push(ObjCategoria);
-            }
-        }
-    }
-    contadorElementosCategoriaAgrupado();
-    //console.log(Colunas);
-}
-
 async function mainGeral(NomeCategoria = "", input = ""){
     Colunas = await consultarFilhosPagina(ID_TIERLIST, undefined);
 
     for(let i = 0; i < Colunas.results.length; i++) {
         Categorias = await consultarFilhosPagina(Colunas.results[i].id, undefined);
-        arrElem = [];
+        arrElemid = [];
         idInicialCategoria = 0;
         let primeiraInteracaoColocar = true;
 
@@ -136,43 +78,60 @@ async function mainGeral(NomeCategoria = "", input = ""){
                 await ColocarItem(Categorias.results[j].id, input);
                 primeiraInteracaoColocar = false;
             }
+            if (!primeiraInteracaoColocar || input === "") {
+                do {
+                    if(primeiraInteracao) {
+                        Elementos = await consultarFilhosPagina(Categorias.results[j].id, undefined);
+                        primeiraInteracao = false;
+                    }
+                    else {
+                        Elementos = await consultarFilhosPagina(Categorias.results[j].id, Elementos.next_cursor);
+                    }
+            
+                    for (let k = 0; k < Elementos.results.length; k++) {
+                        if(Elementos.results[k].hasOwnProperty('numbered_list_item')) {
+                            elemento = SepararElementos(Elementos.results[k].numbered_list_item.rich_text[0].plain_text, dictTipos[ObjCategoria.NomeDaCategoria], ObjCategoria);
+                            arrElemid.push(Elementos.results[k].id)
+                        }
+                    }
+                } while (Elementos.next_cursor != null)
+    
+                ObjCategoria.elementos.sort(MeuSort);
+                
+                let controleInicial = 0
+                let indexElemColocado = await acharIndexElemColocado(ObjCategoria, input)
+                if(indexElemColocado != -1) {
+                    controleInicial = indexElemColocado
+                }
+                console.log(controleInicial)
 
-            do {
-                if(primeiraInteracao) {
-                    Elementos = await consultarFilhosPagina(Categorias.results[j].id, undefined);
-                    primeiraInteracao = false;
-                }
-                else {
-                    Elementos = await consultarFilhosPagina(Categorias.results[j].id, Elementos.next_cursor);
-                }
-        
-                for (let k = 0; k < Elementos.results.length; k++) {
-                    if(Elementos.results[k].hasOwnProperty('numbered_list_item')) {
-                        elemento = SepararElementos(Elementos.results[k].numbered_list_item.rich_text[0].plain_text, dictTipos[ObjCategoria.NomeDaCategoria], ObjCategoria);
-                        
-                        arrElem.push(Elementos.results[k].id)
+                for (let k = controleInicial; k < ObjCategoria.NumElementos; k++) {
+                    let stringFormatada = criarString(ObjCategoria.elementos[k], ObjCategoria.NomeDaCategoria);
+                    //console.log(`k: ${k} - idInicialCategoria: ${idInicialCategoria}`);
+                    let fezUpdate = await updateCategoria(arrElemid[idInicialCategoria + k], stringFormatada);
+                    if(!fezUpdate) {
+                        k--;
                     }
                 }
-            } while (Elementos.next_cursor != null)
-
-            ObjCategoria.NumElementos = ObjCategoria.elementos.length;
-            ObjCategoria.elementos.sort(MeuSort);
-
-            for (let k = 0; k < ObjCategoria.NumElementos; k++) {
-                let stringFormatada = criarString(ObjCategoria.elementos[k], ObjCategoria.NomeDaCategoria);
-                //console.log(`k: ${k} - idInicialCategoria: ${idInicialCategoria}`);
-                let fezUpdate = await updateCategoria(arrElem[idInicialCategoria + k], stringFormatada);
-                if (!fezUpdate) {
-                    k--;
-                }
+                idInicialCategoria += ObjCategoria.NumElementos;
+    
+                console.log("=========================");
+                primeiraInteracaoColocar = true;
             }
-            idInicialCategoria += ObjCategoria.NumElementos;
-
-            console.log("=========================");
             ObjPrincipal.push(ObjCategoria);
         }
     }
-    contadorElementosCategoriaAgrupado();
+    contadorElementosCategoria();
+}
+
+async function acharIndexElemColocado(ObjCategoria, input) {
+    for (let i = 0; i < ObjCategoria.elementos.length; i++) {
+        inputNome = input.split(" - ");
+        if (ObjCategoria.elementos[i].Nome === inputNome[0]) {
+            return i;
+        }
+    }
+    return -1; 
 }
 
 async function consultarFilhosPagina(IdPagina, IdProxPágina) {
@@ -463,7 +422,7 @@ async function contadorElementosCategoria(){
     Colunas = await consultarFilhosPagina(ID_TIERLIST, undefined);
 
     for(let i = 0; i < Colunas.results.length; i++) {
-        arrElem = [];
+        arrElemid = [];
         Categorias = await consultarFilhosPagina(Colunas.results[i].id, undefined);
 
         for(let j = 0; j < Categorias.results.length; j++) {
@@ -490,7 +449,7 @@ async function contadorElementosCategoria(){
                     if(Elementos.results[k].hasOwnProperty('numbered_list_item')) {
                         elemento = SepararElementos(Elementos.results[k].numbered_list_item.rich_text[0].plain_text, dictTipos[ObjCategoria.NomeDaCategoria], ObjCategoria);
                         
-                        arrElem.push(Elementos.results[k].id)
+                        arrElemid.push(Elementos.results[k].id)
                     }
                 }
             } while (Elementos.next_cursor != null)
@@ -526,13 +485,15 @@ async function ColocarItem(IdCategoria, stringProcessada) {
 //mainGeral();
 
 //mainGeral("Animações", "Liga da Justiça: Ponto de Ignição (2013) - 6,7");
-//mainGeral("Filmes - Longas", "TesteFilmes - 10/10");
-//mainGeral("Álbuns", "Don't Forget About Me, Demos - Dominic Fike - 10/2018 - 6/6 - 100%");
-//mainGeral("Animes", "TesteFilmes - 10/10");
+//mainGeral("Filmes - Longas", "TesteFilmes - 8/10");
+//mainGeral("Álbuns", "SUPER - Jão - 8/2023 - 12/14 - 85.71%");
+//mainGeral("Filmes - Longas", "TesteFilmes - 0/10");
 
-//mainGeral("Animações", "Liga da Justiça: Ponto de Ignição (2013) - 6,7");
+//mainGeral("Animações", "Teste (2023) - 10.0");
+//mainGeral("Reality Shows", "Teste (2023) - 10.0");
 
 //contadorElementosCategoria();
+
 /*consultarFilhosPagina(ID_TIERLIST).then((a) => {
     console.log(a);
 });*/
