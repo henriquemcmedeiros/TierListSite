@@ -4,12 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css" defer>
-    <script src="app.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <title>Tier List</title>
 </head>
 <body>
+    <header>
+        <ul>
+            <li><a href="#inicio">Início</a></li>
+            <li><a href="#categorias">Categorias</a></li>
+          </ul>
+    </header>
     <main>
-        
+        <form class="form">
+            <input type="text" name="text" class="input" placeholder="Nome">
+            <input type="number" name="text" class="input" placeholder="Nota">
+            <input type="number" name="text" class="input" placeholder="Ano">
+            <input type="text" name="text" class="input" placeholder="Artistas">
+        </form>
+
+        <div>
+            <button type="button" id="collapsible" class="collapsible Categoria">
+                <span class="material-symbols-outlined" class="expand">expand_more</span>
+                <span class="material-symbols-outlined" class="expand">expand_less</span>
+                <span>Nome da Categoria</span>
+            </button>
+            <div class="content">
+                <ol>
+                    <li>Teste 1 - 10/10</li>
+                    <li>Teste 1 - 10/10</li>
+                    <li>Teste 1 - 10/10</li>
+                    <li>Teste 1 - 10/10</li>
+                </ol>
+            </div>
+        </div>
     </main>
+    <script src="app.js"></script>
 </body>
 </html>
