@@ -1,4 +1,4 @@
-const ID_TIERLIST = "68d17b6b-ae27-499e-8ba9-8ea42e7f0931";
+const ID_TIERLIST = "b0964a9a-f888-4ba1-be7f-e36d201f009c";
 
 // ===== Conexão NOTIION API =====
 const dotenv = require('dotenv').config();
@@ -6,10 +6,16 @@ const { Client } = require('@notionhq/client');
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
+// ===== LEITOR DE INPUT TERMINAL =====
+const readline = require('readline').createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
 const Tipo = {
 	SemData: "Sem data",
-	Filmes: "Formato de filmes",
-	Albuns: "Formato de albuns",
+	Filmes: "Formato de Filmes",
+	Albuns: "Formato de Albuns",
     TedTalks: "Formato TedTalks",
     Shows: "Formato Shows",
     Livros: "Formato Livros",
@@ -100,12 +106,14 @@ async function mainGeral(NomeCategoria = "", input = ""){
                 
                 let controleInicial = 0
                 let indexElemColocado = await acharIndexElemColocado(ObjCategoria, input)
+                
                 if(indexElemColocado != -1) {
                     controleInicial = indexElemColocado
                 }
-                console.log(controleInicial)
 
-                for (let k = controleInicial; k < ObjCategoria.NumElementos; k++) {
+                console.log(`Posição: ${controleInicial + 1} de ${arrElemid.length} elementos`)
+
+                for (let k = controleInicial; k < arrElemid.length; k++) {
                     let stringFormatada = criarString(ObjCategoria.elementos[k], ObjCategoria.NomeDaCategoria);
                     //console.log(`k: ${k} - idInicialCategoria: ${idInicialCategoria}`);
                     let fezUpdate = await updateCategoria(arrElemid[idInicialCategoria + k], stringFormatada);
@@ -113,7 +121,7 @@ async function mainGeral(NomeCategoria = "", input = ""){
                         k--;
                     }
                 }
-                idInicialCategoria += ObjCategoria.NumElementos;
+                idInicialCategoria += arrElemid.length;
     
                 console.log("=========================");
                 primeiraInteracaoColocar = true;
@@ -121,13 +129,14 @@ async function mainGeral(NomeCategoria = "", input = ""){
             ObjPrincipal.push(ObjCategoria);
         }
     }
-    contadorElementosCategoria();
 }
 
 async function acharIndexElemColocado(ObjCategoria, input) {
+    input = input.split(" - ");
+    inputNome = input[0].replace(/\d{4}|\(|\)|1 a \d{2}/g, "").trim()
     for (let i = 0; i < ObjCategoria.elementos.length; i++) {
-        inputNome = input.split(" - ");
-        if (ObjCategoria.elementos[i].Nome === inputNome[0]) {
+        let elementoAtualCategoria = ObjCategoria.elementos[i].Nome.replace(/\(|\)|1 a \d{2}/g, "").trim();
+        if (elementoAtualCategoria === inputNome) {
             return i;
         }
     }
@@ -189,7 +198,7 @@ function SepararElementos(string, tipo, ObjCategoria) {
         elemento.Nota = parseFloat(nota.replace(",", "."));
     }
     else if (tipo == Tipo.Albuns) {
-        // X&Y - Coldplay - 06/2005 - 13/13 - 100%
+        // Exemplo - X&Y - Coldplay - 06/2005 - 13/13 - 100%
         elemento.Nome = item[0];
         elemento.NomeArtista = [];
         let artistas = item[1].split(", ");
@@ -254,6 +263,7 @@ function SepararElementos(string, tipo, ObjCategoria) {
     }
 
     ObjCategoria.elementos.push(elemento);
+    return elemento;
 }
 
 function MeuSort(a, b) {
@@ -415,10 +425,17 @@ async function contadorElementosCategoriaAgrupado() {
             }
         }
     }
-    console.log(ObjContador);
+
+    console.log("=============");
+    for (const chave in ObjContador) {
+        if (ObjContador.hasOwnProperty(chave)) {
+          console.log(`${chave}: ${ObjContador[chave]}`);
+        }
+    }
+    console.log("=============");
 }
 
-async function contadorElementosCategoria(){
+async function contadorElementosCategoria(estatistica = false){
     Colunas = await consultarFilhosPagina(ID_TIERLIST, undefined);
 
     for(let i = 0; i < Colunas.results.length; i++) {
@@ -459,7 +476,9 @@ async function contadorElementosCategoria(){
             ObjPrincipal.push(ObjCategoria);
         }
     }
-    contadorElementosCategoriaAgrupado();
+    if (!estatistica) {
+        contadorElementosCategoriaAgrupado();
+    }
 }
 
 async function ColocarItem(IdCategoria, stringProcessada) {
@@ -479,21 +498,183 @@ async function ColocarItem(IdCategoria, stringProcessada) {
         },
       ],
     });
-    console.log(response);
+    console.log((response.hasOwnProperty("object")) ? "=== Inserido com sucesso! ===" : response);
 }
 
-//mainGeral();
+async function calcularEstatisticas() {
+    await contadorElementosCategoria(true);
 
-//mainGeral("Animações", "Liga da Justiça: Ponto de Ignição (2013) - 6,7");
-//mainGeral("Filmes - Longas", "TesteFilmes - 8/10");
-//mainGeral("Álbuns", "SUPER - Jão - 8/2023 - 12/14 - 85.71%");
-//mainGeral("Filmes - Longas", "TesteFilmes - 0/10");
+    for (let categoria of ObjPrincipal) {
+        let nomeCategoria = categoria.NomeDaCategoria;
+        
+        if (nomeCategoria === "Álbuns") {
+            let estatisticasGeraisAlbuns = {
+                NumMusicasTotais: 0,
+                NumMusicasBoasTotais: 0,
+                PorcentagemMedia: null
+            }
+            let artistas = [];
+            let artistasInseridos = []
 
-//mainGeral("Animações", "Teste (2023) - 10.0");
-//mainGeral("Reality Shows", "Teste (2023) - 10.0");
+            for(let album of categoria.elementos){
+                for(let artistaItem of album.NomeArtista) {
+                    let artista = {
+                        NomeArtista: null,
+                        NumAlbuns: 0,
+                        NumMusicas: 0,
+                        NumMusicasBoas: 0,
+                        Porcentagem: null
+                    }
 
-//contadorElementosCategoria();
+                    if (!artistasInseridos.includes(artistaItem)) {
 
-/*consultarFilhosPagina(ID_TIERLIST).then((a) => {
+                        artista.NomeArtista = artistaItem;
+
+                        artistas.push(artista);
+                        artistasInseridos.push(artistaItem);
+                    } else {
+                        artista.NumAlbuns++;
+                    }
+
+                    for (let artista of artistas) {
+                        if(artista.NomeArtista === artistaItem) {
+                            artista.NumAlbuns++;
+                            artista.NumMusicas += parseInt(album.Musicas);
+                            artista.NumMusicasBoas += parseInt(album.MusicaBoa);
+                            artista.Porcentagem = parseFloat(((artista.NumMusicasBoas / artista.NumMusicas) * 100).toFixed(2));
+                            break;
+                        }
+                    }
+                    estatisticasGeraisAlbuns.NumMusicasTotais += artista.NumMusicas;
+                    estatisticasGeraisAlbuns.NumMusicasBoasTotais += artista.NumMusicasBoas;
+                }
+            }
+            estatisticasGeraisAlbuns.PorcentagemMedia = parseFloat(((estatisticasGeraisAlbuns.NumMusicasBoasTotais / estatisticasGeraisAlbuns.NumMusicasTotais) * 100).toFixed(2));
+
+            console.log(`Número de artistas: ${artistas.length}`)
+            console.log(`Estatisticas Gerais: `);
+            console.log(estatisticasGeraisAlbuns);
+            console.log(artistas.sort(MeuSort));
+        }
+
+
+    }
+}
+
+async function escolhaInserir() {
+    console.log(
+        "[1] Filmes - Longas \n[2] Animações \n[3] Animes \n[4] Comédia \n[5] Jogos - Tabuleiro \n[6] RPG’s \n[7] Filmes - Curtas \n[8] Reality Shows \n[9] Álbuns \n[10] Jogos - Videogame \n[11] Séries \n[12] Mangas e HQ’s \n[13] Documentários \n[14] Livros \n[15] Shows \n[16] Ted Talks"
+    )
+
+    readline.question('Escolha: \n', async escolha => {
+        escolha = parseInt(escolha);
+
+        switch (escolha) {
+            case 1:
+                return "Filmes - Longas"
+            case 2:
+                return "Animações"
+            case 3:
+                return "Animes"
+            case 4:
+                return "Comédia"
+            case 5:
+                return "Jogos - Tabuleiro"
+            case 6:
+                return "RPG’s"
+            case 7:
+                return "Filmes - Curtas"
+            case 8:
+                return "Reality Shows"
+            case 9:
+                return "Álbuns"
+            case 10:
+                return "Jogos - Videogame"
+            case 11:
+                return "Séries"
+            case 12:
+                return "Mangas e HQ’s"
+            case 13:
+                return "Documentários"
+            case 14:
+                return "Livros"
+            case 15:
+                return "Shows"
+            case 16:
+                return "Ted Talks"
+            default:
+                console.log("Você não escolheu uma opção válida");
+                return 0;
+        }
+    });
+}
+
+async function formatacaoInserir(nomeCategoria) {
+    console.log(nomeCategoria)
+    if (nomeCategoria === "Filmes - Longas" || nomeCategoria === "Filmes - Curtas") {
+        let nome = readline.question('Nome: ', nome => { return nome });
+        let ano = readline.question('Ano: ', ano => { return parseInt(ano) });
+        let nota = readline.question('Nota: ', nota => { return parseFloat(nota) });
+
+        return `${nome} (${ano}) - ${nota}/10`
+    }
+}
+
+
+async function menu () {
+    console.log(
+        "[1] Inserir valor \n[2] Contador de elementos \n[3] Estatisicas \n[4] SAIR"
+    )
+
+    readline.question('Escolha: \n', async escolha => {
+        escolha = parseInt(escolha);
+
+        switch (escolha) {
+            case 1:
+                let entrada = await escolhaInserir().then(tipo => {formatacaoInserir(tipo);});
+                break;
+            case 2:
+                console.log("Fazendo o cálculo dos elementos...");
+                await contadorElementosCategoria();
+                readline.close();
+                break;
+            case 3:
+                console.log("Fazendo o cálculo estatístico...");
+                await calcularEstatisticas();
+                readline.close();
+                break;
+            case 4:
+                console.log("Saindo...")
+                readline.close();
+                break;
+            default:
+                console.log("Você não escolheu uma opção válida");
+                readline.close();
+                break;
+        }
+    });
+}
+
+
+menu();
+
+/*consultarFilhosPagina("b0964a9a-f888-4ba1-be7f-e36d201f009c").then((a) => {
     console.log(a);
 });*/
+
+// ===== TESTES =====
+//mainGeral("Animações", "Teste (2023) - 0/10")
+//mainGeral("Animes", "Teste - 0/10")
+//mainGeral("Comédia", "Teste (2023) - 0/10")
+//mainGeral("Jogos - Tabuleiro", "Teste - 0/10")
+//mainGeral("RPG’s", "Teste - 0/10")
+//mainGeral("Filmes - Curtas", "Teste (2023) - 0/10")
+//mainGeral("Reality Shows", "Teste - 0/10")
+//mainGeral("Álbuns", "Teste - Teste - 8/2023 - 0/10 - 0%")
+//mainGeral("Jogos - Videogame", "Teste - 0/10")
+//mainGeral("Séries", "Teste - 0/10")
+//mainGeral("Mangas e HQ’s", "Teste (1 a 12) - 0/10")
+//mainGeral("Documentários", "Teste (2023) - 0/10")
+//mainGeral("Livros", "Teste - 0/10")
+//mainGeral("Shows", "Teste - 08/2023")
+//mainGeral("Ted Talks", "Teste - Teste - 0/10")
